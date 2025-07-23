@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Download, FileText, Plane, Hotel, MapPin, Users, Plus, Trash2, Upload } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { format, differenceInDays, addDays } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { generatePDF } from '@/utils/pdfGenerator';
@@ -15,8 +16,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface DayItinerary {
   day: number;
-  morning: string[];
-  afternoon: string[];
+  description: string;
   meals: string[];
   overnight: string;
   image?: string;
@@ -50,6 +50,7 @@ interface TourData {
   packageType: 'domestic' | 'international';
   landPackageCost: string;
   landPackageNote: string;
+  taxesIncluded: boolean;
   gstPercent: string;
   tcsPercent: string;
   hotelName: string;
@@ -92,6 +93,7 @@ const Index = () => {
     packageType: 'domestic',
     landPackageCost: '',
     landPackageNote: '',
+    taxesIncluded: false,
     gstPercent: '5',
     tcsPercent: '5',
     hotelName: '',
@@ -123,9 +125,8 @@ const Index = () => {
         const existingDay = tourData.itinerary.find(day => day.day === i);
         newItinerary.push(existingDay || {
           day: i,
-          morning: [''],
-          afternoon: [''],
-          meals: [''],
+          description: '',
+          meals: [],
           overnight: i === days ? 'Departure' : 'Hotel'
         });
       }
@@ -140,23 +141,6 @@ const Index = () => {
     setTourData(prev => ({ ...prev, itinerary: newItinerary }));
   };
 
-  const addItineraryField = (dayIndex: number, field: 'morning' | 'afternoon' | 'meals') => {
-    const newItinerary = [...tourData.itinerary];
-    newItinerary[dayIndex][field].push('');
-    setTourData(prev => ({ ...prev, itinerary: newItinerary }));
-  };
-
-  const removeItineraryField = (dayIndex: number, field: 'morning' | 'afternoon' | 'meals', fieldIndex: number) => {
-    const newItinerary = [...tourData.itinerary];
-    newItinerary[dayIndex][field].splice(fieldIndex, 1);
-    setTourData(prev => ({ ...prev, itinerary: newItinerary }));
-  };
-
-  const updateItineraryFieldValue = (dayIndex: number, field: 'morning' | 'afternoon' | 'meals', fieldIndex: number, value: string) => {
-    const newItinerary = [...tourData.itinerary];
-    newItinerary[dayIndex][field][fieldIndex] = value;
-    setTourData(prev => ({ ...prev, itinerary: newItinerary }));
-  };
 
   const addArrayField = (field: 'inclusions' | 'exclusions' | 'hotelPolicy' | 'cabPolicy') => {
     setTourData(prev => ({
@@ -589,6 +573,18 @@ const Index = () => {
               </Select>
             </div>
             
+            {/* Taxes Included Checkbox */}
+            <div className="mb-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="taxesIncluded"
+                  checked={tourData.taxesIncluded}
+                  onCheckedChange={(checked) => setTourData(prev => ({ ...prev, taxesIncluded: !!checked }))}
+                />
+                <Label htmlFor="taxesIncluded">Taxes Included</Label>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div>
                 <Label htmlFor="landPackageCost">Land Package Cost (INR)</Label>
@@ -599,17 +595,20 @@ const Index = () => {
                   className="mt-1"
                 />
               </div>
-              <div>
-                <Label htmlFor="gstPercent">GST %</Label>
-                <Input
-                  id="gstPercent"
-                  value={tourData.gstPercent}
-                  onChange={(e) => setTourData(prev => ({ ...prev, gstPercent: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-              {/* Show TCS only for international packages */}
-              {tourData.packageType === 'international' && (
+              {/* Show GST only if taxes are not included */}
+              {!tourData.taxesIncluded && (
+                <div>
+                  <Label htmlFor="gstPercent">GST %</Label>
+                  <Input
+                    id="gstPercent"
+                    value={tourData.gstPercent}
+                    onChange={(e) => setTourData(prev => ({ ...prev, gstPercent: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+              {/* Show TCS only for international packages and if taxes are not included */}
+              {tourData.packageType === 'international' && !tourData.taxesIncluded && (
                 <div>
                   <Label htmlFor="tcsPercent">TCS %</Label>
                   <Input
@@ -674,114 +673,74 @@ const Index = () => {
                   <div key={day.day} className="border border-purple-200 rounded-lg p-4 bg-purple-50/50">
                     <h3 className="text-lg font-semibold text-purple-700 mb-3">Day {day.day}</h3>
                     <div className="space-y-4">
-                      {/* Morning Activities */}
+                      {/* Description */}
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="font-medium">Morning Activities</Label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addItineraryField(dayIndex, 'morning')}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {day.morning.map((activity, activityIndex) => (
-                            <div key={activityIndex} className="flex gap-2">
-                              <Input
-                                placeholder="Add morning activity..."
-                                value={activity}
-                                onChange={(e) => updateItineraryFieldValue(dayIndex, 'morning', activityIndex, e.target.value)}
-                                className="flex-1"
-                              />
-                              {day.morning.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeItineraryField(dayIndex, 'morning', activityIndex)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Afternoon Activities */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="font-medium">Afternoon/Evening Activities</Label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addItineraryField(dayIndex, 'afternoon')}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {day.afternoon.map((activity, activityIndex) => (
-                            <div key={activityIndex} className="flex gap-2">
-                              <Input
-                                placeholder="Add afternoon/evening activity..."
-                                value={activity}
-                                onChange={(e) => updateItineraryFieldValue(dayIndex, 'afternoon', activityIndex, e.target.value)}
-                                className="flex-1"
-                              />
-                              {day.afternoon.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeItineraryField(dayIndex, 'afternoon', activityIndex)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                        <Label htmlFor={`description-${day.day}`} className="font-medium">Description</Label>
+                        <Textarea
+                          id={`description-${day.day}`}
+                          placeholder="Enter day's itinerary description..."
+                          value={day.description || ''}
+                          onChange={(e) => updateItineraryDay(dayIndex, 'description', e.target.value)}
+                          className="mt-1"
+                          rows={4}
+                        />
                       </div>
 
                       {/* Meals */}
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="font-medium">Meals</Label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addItineraryField(dayIndex, 'meals')}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {day.meals.map((meal, mealIndex) => (
-                            <div key={mealIndex} className="flex gap-2">
-                              <Input
-                                placeholder="Add meal..."
-                                value={meal}
-                                onChange={(e) => updateItineraryFieldValue(dayIndex, 'meals', mealIndex, e.target.value)}
-                                className="flex-1"
-                              />
-                              {day.meals.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeItineraryField(dayIndex, 'meals', mealIndex)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
+                        <Label className="font-medium">Meals</Label>
+                        <div className="flex gap-4 mt-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`breakfast-${day.day}`}
+                              checked={day.meals?.includes('breakfast') || false}
+                              onChange={(e) => {
+                                const currentMeals = day.meals || [];
+                                if (e.target.checked) {
+                                  updateItineraryDay(dayIndex, 'meals', [...currentMeals, 'breakfast']);
+                                } else {
+                                  updateItineraryDay(dayIndex, 'meals', currentMeals.filter(meal => meal !== 'breakfast'));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`breakfast-${day.day}`} className="text-sm">Breakfast</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`lunch-${day.day}`}
+                              checked={day.meals?.includes('lunch') || false}
+                              onChange={(e) => {
+                                const currentMeals = day.meals || [];
+                                if (e.target.checked) {
+                                  updateItineraryDay(dayIndex, 'meals', [...currentMeals, 'lunch']);
+                                } else {
+                                  updateItineraryDay(dayIndex, 'meals', currentMeals.filter(meal => meal !== 'lunch'));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`lunch-${day.day}`} className="text-sm">Lunch</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`dinner-${day.day}`}
+                              checked={day.meals?.includes('dinner') || false}
+                              onChange={(e) => {
+                                const currentMeals = day.meals || [];
+                                if (e.target.checked) {
+                                  updateItineraryDay(dayIndex, 'meals', [...currentMeals, 'dinner']);
+                                } else {
+                                  updateItineraryDay(dayIndex, 'meals', currentMeals.filter(meal => meal !== 'dinner'));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`dinner-${day.day}`} className="text-sm">Dinner</Label>
+                          </div>
                         </div>
                       </div>
 

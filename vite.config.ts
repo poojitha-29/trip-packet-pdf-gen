@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/trip-packet-pdf-gen/", // 👈 Add this line
+  base: "/trip-packet-pdf-gen/", 
 
   server: {
     host: "::",

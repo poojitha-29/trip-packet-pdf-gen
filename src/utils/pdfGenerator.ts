@@ -1,10 +1,8 @@
-
 import jsPDF from 'jspdf';
 
 interface DayItinerary {
   day: number;
-  morning: string[];
-  afternoon: string[];
+  description: string;
   meals: string[];
   overnight: string;
   image?: string;
@@ -208,24 +206,18 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
   pdf.rect(0, 0, pageWidth, 40, 'F');
   
   try {
-    // Load and add company logo with better positioning
-    const logoDataUrl = await loadImage('/lovable-uploads/884876cc-acf9-45cb-ad4a-c64cc58f497c.png');
-    
-    // Cleaner circular background for logo
-    pdf.setFillColor(255, 255, 255);
-    pdf.circle(margin + 12, 20, 10, 'F');
-    
-    // Better logo positioning
-    pdf.addImage(logoDataUrl, 'PNG', margin + 2, 10, 20, 20);
-  } catch (error) {
-    // Enhanced fallback
-    pdf.setFillColor(255, 255, 255);
-    pdf.circle(margin + 12, 20, 10, 'F');
-    pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('SHPL', margin + 7, 22);
-  }
+  const logo = await loadImage(`${import.meta.env.BASE_URL}logo.png`);
+  pdf.addImage(logo, 'PNG', margin + 2, 10, 20, 20);
+} catch (error) {
+  // Fallback
+  pdf.setFillColor(255, 255, 255);
+  pdf.circle(margin + 12, 20, 10, 'F');
+  pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('SHPL', margin + 7, 22);
+}
+
   
   // Enhanced company information
   pdf.setTextColor(255, 255, 255);
@@ -441,137 +433,53 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
       
       pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
 
-      // Enhanced activity sections with adjusted width
-      if (day.morning && day.morning.some(item => item.trim())) {
+      // Description section with adjusted width
+      if (day.description && day.description.trim()) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(11);
         pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        pdf.text('Morning:', adjustedMargin + 8, yPosition);
+        pdf.text('Description:', adjustedMargin + 8, yPosition);
         yPosition += 8;
         
-        const morningActivities = day.morning.filter(item => item.trim());
-        if (morningActivities.length > 0) {
-          // Adjust bullet points to use limited width
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-          
-          const leftMargin = adjustedMargin + 8 + 5;
-          
-          morningActivities.forEach((item) => {
-            if (!item || !item.trim()) return;
-            
-            checkPageBreak(8);
-            
-            // Enhanced bullet point
-            pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-            pdf.circle(leftMargin, yPosition - 1, 1, 'F');
-            
-            // Better text positioning and wrapping with adjusted width
-            const maxWidth = textContentWidth - 25;
-            const lines = pdf.splitTextToSize(item.trim(), maxWidth);
-            
-            for (let i = 0; i < lines.length; i++) {
-              if (i > 0) {
-                checkPageBreak(5);
-                yPosition += 5;
-              }
-              const xPos = leftMargin + 8;
-              pdf.text(lines[i], xPos, yPosition);
-            }
-            
-            yPosition += 7;
-          });
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+        
+        const maxWidth = textContentWidth - 15;
+        const lines = pdf.splitTextToSize(day.description.trim(), maxWidth);
+        
+        for (let i = 0; i < lines.length; i++) {
+          checkPageBreak(5);
+          pdf.text(lines[i], adjustedMargin + 8, yPosition);
+          yPosition += 5;
         }
-        yPosition += 3;
+        yPosition += 5;
       }
 
-      if (day.afternoon && day.afternoon.some(item => item.trim())) {
+      if (day.meals && day.meals.length > 0) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(11);
         pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        pdf.text('Afternoon/Evening:', adjustedMargin + 8, yPosition);
+        pdf.text('Meals:', adjustedMargin + 8, yPosition);
         yPosition += 8;
         
-        const afternoonActivities = day.afternoon.filter(item => item.trim());
-        if (afternoonActivities.length > 0) {
-          // Adjust bullet points to use limited width
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-          
-          const leftMargin = adjustedMargin + 8 + 5;
-          
-          afternoonActivities.forEach((item) => {
-            if (!item || !item.trim()) return;
-            
-            checkPageBreak(8);
-            
-            // Enhanced bullet point
-            pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-            pdf.circle(leftMargin, yPosition - 1, 1, 'F');
-            
-            // Better text positioning and wrapping with adjusted width
-            const maxWidth = textContentWidth - 25;
-            const lines = pdf.splitTextToSize(item.trim(), maxWidth);
-            
-            for (let i = 0; i < lines.length; i++) {
-              if (i > 0) {
-                checkPageBreak(5);
-                yPosition += 5;
-              }
-              const xPos = leftMargin + 8;
-              pdf.text(lines[i], xPos, yPosition);
-            }
-            
-            yPosition += 7;
-          });
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+        
+        const mealsText = day.meals.map(meal => 
+          meal.charAt(0).toUpperCase() + meal.slice(1)
+        ).join(', ');
+        
+        const maxWidth = textContentWidth - 15;
+        const lines = pdf.splitTextToSize(mealsText, maxWidth);
+        
+        for (let i = 0; i < lines.length; i++) {
+          checkPageBreak(5);
+          pdf.text(lines[i], adjustedMargin + 8, yPosition);
+          yPosition += 5;
         }
-        yPosition += 3;
-      }
-
-      if (day.meals && day.meals.some(item => item.trim())) {
-        const mealItems = day.meals.filter(item => item.trim());
-        if (mealItems.length > 0) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(11);
-          pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          pdf.text('Meals:', adjustedMargin + 8, yPosition);
-          yPosition += 8;
-          
-          // Adjust bullet points to use limited width
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-          
-          const leftMargin = adjustedMargin + 8 + 5;
-          
-          mealItems.forEach((item) => {
-            if (!item || !item.trim()) return;
-            
-            checkPageBreak(8);
-            
-            // Enhanced bullet point
-            pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-            pdf.circle(leftMargin, yPosition - 1, 1, 'F');
-            
-            // Better text positioning and wrapping with adjusted width
-            const maxWidth = textContentWidth - 25;
-            const lines = pdf.splitTextToSize(item.trim(), maxWidth);
-            
-            for (let i = 0; i < lines.length; i++) {
-              if (i > 0) {
-                checkPageBreak(5);
-                yPosition += 5;
-              }
-              const xPos = leftMargin + 8;
-              pdf.text(lines[i], xPos, yPosition);
-            }
-            
-            yPosition += 7;
-          });
-          yPosition += 3;
-        }
+        yPosition += 5;
       }
 
       const overnight = safeText(day.overnight);
@@ -693,7 +601,32 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
     addKeyValue('Email', 'venkatasrikanth@sangeethaholidays.com', true);
     addKeyValue('Website', 'www.sangeethaholidays.com', true);
   }
-
+// Add disclaimer section
+  checkPageBreak(25);
+  yPosition += 10;
+  
+  pdf.setFillColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+  pdf.roundedRect(margin, yPosition, contentWidth, 20, 2, 2, 'F');
+  
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+  pdf.text('IMPORTANT DISCLAIMER', margin + 5, yPosition + 8);
+  
+  yPosition += 15;
+  
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+  
+  const disclaimerText = 'Note: In case of unforeseen circumstances such as natural disasters, political unrest, holidays, or unexpected events, Terrorist attacks etc . The Amount paid will not be refundable .';
+  const disclaimerLines = pdf.splitTextToSize(disclaimerText, contentWidth - 10);
+  
+  for (let i = 0; i < disclaimerLines.length; i++) {
+    checkPageBreak(5);
+    pdf.text(disclaimerLines[i], margin + 5, yPosition);
+    yPosition += 5;
+  }
   // Enhanced Professional Footer
   const totalPages = pdf.internal.pages.length - 1;
   for (let i = 1; i <= totalPages; i++) {
