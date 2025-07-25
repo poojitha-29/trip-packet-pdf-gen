@@ -14,6 +14,8 @@ interface TourData {
   endDate: Date | undefined;
   numTravellers: string;
   costPerPerson: string;
+  numPlaces: number;
+  places: string[];
   flightType: 'roundtrip' | 'one-way';
   onwardFlight: {
     airline: string;
@@ -38,6 +40,8 @@ interface TourData {
   landPackageNote: string;
   gstPercent: string;
   tcsPercent: string;
+  numHotels: number;
+  hotels: { name: string; roomType: string }[];
   hotelName: string;
   roomType: string;
   itinerary: DayItinerary[];
@@ -275,6 +279,14 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
     addKeyValue('Cost per Person', `Rs. ${costPerPerson}`, true);
   }
 
+  // Add places information
+  if (tourData.places && tourData.places.length > 0) {
+    const validPlaces = tourData.places.filter(place => place.trim());
+    if (validPlaces.length > 0) {
+      addKeyValue('Places to Visit', validPlaces.join(', '));
+    }
+  }
+
   // Enhanced Flight Details Section
   const onwardAirline = safeText(tourData.onwardFlight.airline);
   const returnAirline = safeText(tourData.returnFlight.airline);
@@ -373,18 +385,47 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
 
   // Enhanced Accommodation Section
   const hotelName = safeText(tourData.hotelName);
-  if (hotelName) {
+  const hasHotels = tourData.hotels && tourData.hotels.length > 0 && 
+    tourData.hotels.some(hotel => hotel.name.trim());
+  
+  if (hotelName || hasHotels) {
     addSectionHeader('ACCOMMODATION');
-    addKeyValue('Hotel', hotelName, true);
-    addKeyValue('Room Type', safeText(tourData.roomType, 'Standard'));
+    
+    // Show new hotel structure if available
+    if (hasHotels) {
+      tourData.hotels.forEach((hotel, index) => {
+        if (hotel.name.trim()) {
+          addKeyValue(`Hotel ${index + 1}`, hotel.name, true);
+          if (hotel.roomType.trim()) {
+            addKeyValue(`Room Type`, hotel.roomType);
+          }
+          if (index < tourData.hotels.length - 1) {
+            yPosition += 3; // Add spacing between hotels
+          }
+        }
+      });
+    } else if (hotelName) {
+      // Fallback to legacy single hotel
+      addKeyValue('Hotel', hotelName, true);
+      addKeyValue('Room Type', safeText(tourData.roomType, 'Standard'));
+    }
   }
 
   // Enhanced Day-wise Itinerary
   if (tourData.itinerary && tourData.itinerary.length > 0) {
     addSectionHeader('DETAILED ITINERARY');
 
-    tourData.itinerary.forEach((day) => {
-      checkPageBreak(30);
+    tourData.itinerary.forEach((day, index) => {
+      // Add spacing between days (but not for first day)
+      if (index > 0) {
+        yPosition += 8;
+      }
+      
+      // Check if we need a new page for the day header (minimum 25 units needed for day header + some content)
+      if (yPosition + 25 > pageHeight - margin - 15) {
+        pdf.addPage();
+        yPosition = margin;
+      }
       
       // Enhanced day header
       pdf.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2]);
@@ -395,8 +436,7 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
       pdf.setTextColor(255, 255, 255);
       pdf.text(`DAY ${day.day}`, margin + 8, yPosition + 6.5);
       
-      let dayStartY = yPosition + 18;
-      yPosition = dayStartY;
+      yPosition += 15; // Reduced spacing after header
       
       // Check if there's an image for this day
       let imageWidth = 0;
@@ -409,9 +449,9 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
         imageHeight = 35;
         
         try {
-          // Position image on the right side, starting under the day header
+          // Position image on the right side, starting at current yPosition
           const imageX = pageWidth - margin - imageWidth - 5;
-          const imageY = dayStartY;
+          const imageY = yPosition;
           pdf.addImage(day.image, 'JPEG', imageX, imageY, imageWidth, imageHeight);
           
           // Add image label
@@ -449,11 +489,10 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
         const lines = pdf.splitTextToSize(day.description.trim(), maxWidth);
         
         for (let i = 0; i < lines.length; i++) {
-          checkPageBreak(5);
           pdf.text(lines[i], adjustedMargin + 8, yPosition);
           yPosition += 5;
         }
-        yPosition += 5;
+        yPosition += 3;
       }
 
       if (day.meals && day.meals.length > 0) {
@@ -475,17 +514,14 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
         const lines = pdf.splitTextToSize(mealsText, maxWidth);
         
         for (let i = 0; i < lines.length; i++) {
-          checkPageBreak(5);
           pdf.text(lines[i], adjustedMargin + 8, yPosition);
           yPosition += 5;
         }
-        yPosition += 5;
+        yPosition += 3;
       }
 
       const overnight = safeText(day.overnight);
       if (overnight) {
-        checkPageBreak(10);
-        
         const leftMargin = adjustedMargin + 5;
         
         // Key styling
@@ -505,8 +541,7 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
         
         for (let i = 0; i < lines.length; i++) {
           if (i > 0) {
-            checkPageBreak(6);
-            yPosition += 6;
+            yPosition += 5;
           }
           const xPos = i === 0 ? leftMargin + keyWidth : leftMargin + 15;
           pdf.text(lines[i], xPos, yPosition);
@@ -517,13 +552,13 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
 
       // Ensure we move past the image if it extends beyond the text
       if (hasImage) {
-        const imageEndY = dayStartY + imageHeight + 15;
+        const imageEndY = yPosition + imageHeight + 10;
         if (yPosition < imageEndY) {
           yPosition = imageEndY;
         }
       }
 
-      yPosition += 8;
+      yPosition += 5; // Reduced spacing between days
     });
   }
 
