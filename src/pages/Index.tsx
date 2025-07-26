@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface DayItinerary {
   day: number;
+      title: string;
   description: string;
   meals: string[];
   overnight: string;
@@ -148,6 +149,7 @@ const [currentFormId, setCurrentFormId] = useState<string | null>(null);
         const existingDay = tourData.itinerary.find(day => day.day === i);
         newItinerary.push(existingDay || {
           day: i,
+          title: '',
           description: '',
           meals: [],
           overnight: i === days ? 'Departure' : 'Hotel'
@@ -936,6 +938,17 @@ useEffect(() => {
                   <div key={day.day} className="border border-purple-200 rounded-lg p-4 bg-purple-50/50">
                     <h3 className="text-lg font-semibold text-purple-700 mb-3">Day {day.day}</h3>
                     <div className="space-y-4">
+                       {/* Title */}
+                      <div>
+                        <Label htmlFor={`title-${day.day}`} className="font-medium">Title</Label>
+                        <Input
+                          id={`title-${day.day}`}
+                          placeholder="Enter day's title..."
+                          value={day.title || ''}
+                          onChange={(e) => updateItineraryDay(dayIndex, 'title', e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
                       {/* Description */}
                       <div>
                         <Label htmlFor={`description-${day.day}`} className="font-medium">Description</Label>

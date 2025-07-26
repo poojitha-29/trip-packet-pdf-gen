@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 
 interface DayItinerary {
   day: number;
+  title: string;
   description: string;
   meals: string[];
   overnight: string;
@@ -413,31 +414,37 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
 
   // Enhanced Day-wise Itinerary
   if (tourData.itinerary && tourData.itinerary.length > 0) {
+    // Ensure the "DETAILED ITINERARY" section header is on its own page.
     addSectionHeader('DETAILED ITINERARY');
 
     tourData.itinerary.forEach((day, index) => {
-      // Add spacing between days (but not for first day)
-      if (index > 0) {
-        yPosition += 8;
-      }
-      
-      // Check if we need a new page for the day header (minimum 25 units needed for day header + some content)
-      if (yPosition + 25 > pageHeight - margin - 15) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-      
-      // Enhanced day header
+      // For EVERY DAY (including first), always add a new page and reset yPosition.
+      pdf.addPage();
+      yPosition = margin;
+
+      // DAY HEADER
       pdf.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       pdf.roundedRect(margin + 2, yPosition, contentWidth - 4, 10, 2, 2, 'F');
-      
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(255, 255, 255);
       pdf.text(`DAY ${day.day}`, margin + 8, yPosition + 6.5);
+
+      yPosition += 15;
       
-      yPosition += 15; // Reduced spacing after header
-      
+      // DAY TITLE (if exists)
+if (day.title && day.title.trim()) {
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+  const titleLines = pdf.splitTextToSize(day.title.trim(), contentWidth - 10);
+  for (let i = 0; i < titleLines.length; i++) {
+    pdf.text(titleLines[i], margin + 8, yPosition);
+    yPosition += 6;
+  }
+  yPosition += 4;
+}
+
       // Check if there's an image for this day
       let imageWidth = 0;
       let imageHeight = 0;
@@ -691,3 +698,4 @@ export const generatePDF = async (tourData: TourData, filename: string) => {
   // Save the PDF
   pdf.save(filename);
 };
+      
